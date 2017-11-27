@@ -1,6 +1,17 @@
 package main;
 
 
+import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.*;
 import cpsc441.a4.shared.*;
 
@@ -23,6 +34,15 @@ import cpsc441.a4.shared.*;
  *
  */
 public class Router {
+	private int routerId;
+	private String serverName;
+	private int serverPort;
+	private int updateInterval;
+	private OutputStream output;
+	private InputStream input;
+	private ObjectOutputStream oout;
+	private ObjectInputStream oinp;
+	private RtnTable rtn;
 	
     /**
      * Constructor to initialize the rouer instance 
@@ -34,8 +54,12 @@ public class Router {
      */
 	public Router(int routerId, String serverName, int serverPort, int updateInterval) {
 		// to be completed
+		this.routerId = routerId;
+		this.serverName = serverName;
+		this.serverPort = serverPort;
+		this.updateInterval = updateInterval;
+		rtn = null;
 	}
-	
 
     /**
      * starts the router 
@@ -44,7 +68,55 @@ public class Router {
      */
 	public RtnTable start() {
 		// to be completed
+		try {
+			Socket socket = new Socket(serverName, serverPort);
+			DvrPacket outhello = createHello();
+			output = socket.getOutputStream();
+			input = socket.getInputStream();
+			oout = new ObjectOutputStream(output);
+			oinp = new ObjectInputStream(input);
+			oout.writeObject(outhello);					// sends HELLO packet
+			DvrPacket inhello = (DvrPacket)oinp.readObject();	// stores HELLO packet response
+			if(inhello.type==DvrPacket.HELLO) {			// initial HELLO response
+				System.out.println("Initial packet received");
+				
+				while((inhello=(DvrPacket)oinp.readObject()).type!=DvrPacket.QUIT) {
+					System.out.println("Receiving packet");
+				}
+				System.out.println("Quit received. Shutting down");
+			}
+			else {
+				// TODO Process non-HELLO reply;
+				System.out.println(inhello.toString());
+			}
+			
+			oinp.close();
+			oout.close();
+			input.close();
+			output.close();
+			socket.close();
+			
+		}
+		catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
 		return new RtnTable();
+	}
+	
+	private DvrPacket createHello() {
+		DvrPacket dvr = new DvrPacket(routerId, DvrPacket.SERVER, DvrPacket.HELLO);
+		//dvr.type = dvr.HELLO;
+		return dvr;
 	}
 
 	
